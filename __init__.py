@@ -1,4 +1,4 @@
-"""Weather Extension, gets information from openweatherapi"""
+"""Weather Extension, gets information from openweather API"""
 
 from albertv0 import *
 
@@ -10,7 +10,7 @@ import time
 __iid__ = "PythonInterface/v0.1"
 __prettyname__ = "Forecast"
 __version__ = "0.1"
-__trigger__ = "forecast "
+__trigger__ = "fc "
 __author__ = "Bharat Kalluri"
 __dependencies__ = []
 
@@ -28,11 +28,19 @@ weatherDict = {
     "mist": "weather-fog",
 }
 
+API_URL = "http://api.openweathermap.org/data/2.5/forecast?appid=" \
+          "62dbe63b5ed5c90264b4d3c0054bd993&type=accurate&units=metric&q="
+
 
 def handleQuery(query):
     if query.isTriggered:
+        # Prevent rate limiting
+        time.sleep(0.5)
+        if not query.isValid:
+            return
+
         if query.string.strip():
-            return showForecast(query)
+            return show_forecast(query)
         else:
             return Item(
                 id=__prettyname__,
@@ -43,17 +51,13 @@ def handleQuery(query):
             )
 
 
-def showForecast(query):
-    qurl = (
-        "http://api.openweathermap.org/data/2.5/forecast?appid=62dbe63b5ed5c90264b4d3c0054bd993&type=accurate&units=metric&q="
-        + query.string.strip()
-    )
+def show_forecast(query):
+    qurl = API_URL + query.string.strip()
 
     try:
         res = http.request("GET", qurl)
         data = json.loads(res.data)
     except:
-        critical("No Internet!")
         return [
             Item(
                 id=__prettyname__,
@@ -75,58 +79,55 @@ def showForecast(query):
         ]
     else:
         now = datetime.utcnow()
-        itemArr = []
-
-        # Initial Item showing info
-        tempItem = Item(
+        item_arr = [Item(
             id=__prettyname__,
             icon=iconLookup("dialog-information"),
             text="Weather in {}".format(data["city"]["name"]),
-        )
-        itemArr.append(tempItem)
+        )]
+        # Initial Item showing info
 
         # Get all the required timestamps
-        requiredTs = []
+        required_ts = []
         for i in range(1, 6):
-            tempDate = int(
+            temp_date = int(
                 (
                     datetime(now.year, now.month, now.day, 12, tzinfo=timezone.utc)
                     + timedelta(days=i)
                 ).timestamp()
             )
-            requiredTs.append(tempDate)
+            required_ts.append(temp_date)
 
-        tempItem = makeItem(data["list"][0])
-        itemArr.append(tempItem)
+        temp_item = make_item(data["list"][0])
+        item_arr.append(temp_item)
 
         for obj in data["list"]:
-            if obj["dt"] in requiredTs:
-                tempItem = makeItem(obj)
-                itemArr.append(tempItem)
+            if obj["dt"] in required_ts:
+                temp_item = make_item(obj)
+                item_arr.append(temp_item)
 
-        return itemArr
+        return item_arr
 
 
-def makeItem(jsonObj):
-    dateEpoch = jsonObj["dt"]
+def make_item(json_obj):
+    date_epoch = json_obj["dt"]
     return Item(
         id=__prettyname__,
         icon=iconLookup(
-            weatherDict.get(jsonObj["weather"][0]["description"], "weather-overcast")
+            weatherDict.get(json_obj["weather"][0]["description"], "weather-overcast")
         ),
         text="{}: {}".format(
-            time.strftime("%d %B", time.localtime(dateEpoch)),
-            jsonObj["weather"][0]["main"],
+            time.strftime("%d %B", time.localtime(date_epoch)),
+            json_obj["weather"][0]["main"],
         ),
         subtext="High: {:.1f}°C ({:.1f}°F) Low: {:.1f}°C ({:.1f}°F) Humidity: {}%".format(
-            jsonObj["main"]["temp_min"],
-            fahrenheitConverter(jsonObj["main"]["temp_min"]),
-            jsonObj["main"]["temp_max"],
-            fahrenheitConverter(jsonObj["main"]["temp_max"]),
-            jsonObj["main"]["humidity"],
+            json_obj["main"]["temp_min"],
+            fahrenheit_converter(json_obj["main"]["temp_min"]),
+            json_obj["main"]["temp_max"],
+            fahrenheit_converter(json_obj["main"]["temp_max"]),
+            json_obj["main"]["humidity"],
         ),
     )
 
 
-def fahrenheitConverter(celsius):
+def fahrenheit_converter(celsius):
     return 9 / 5 * celsius + 32
