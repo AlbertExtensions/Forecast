@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timedelta, timezone
 import time
 
-__iid__ = "PythonInterface/v0.2"
+__iid__ = "PythonInterface/v0.4"
 __title__ = "Forecast"
 __prettyname__ = "Forecast"
 __version__ = "0.0.2"
